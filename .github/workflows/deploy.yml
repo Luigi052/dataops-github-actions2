@@ -1,34 +1,31 @@
-name: Deploy Docker App em VM Azure
+name: Deploy via SSH
 
 on:
   push:
     branches:
       - main
-  
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout do codigo
-      uses: actions/checkout@v4
-    
+    - name: Checkout do código
+      uses: actions/checkout@v3
 
-    - name: Testar conexão SSH com netcat
-      run: |
-        echo "Testando conexão com porta 22..."
-        nc -zv -w 5 ${{ secrets.SERVER_HOST }} 22 || echo " Falha na conexão com a porta 22 (SSH não acessível)"
-
-    - name: Conectar com a VM e fazer o deploy
-      uses: appleboy/ssh-action@v0.1.8
-
-      with: 
-        host: ${{ secrets.SERVER_HOST}}
+    - name: Conectar via SSH e fazer deploy
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
-        port: 22
         script: |
-          cd /home/${{ secrets.SERVER_USER }}/dataops-github-actions2
+          if [ ! -d "Data-Ops-Atividade-III" ]; then
+            git clone https://github.com/Luigi052/Data-Ops-Atividade-III.git
+          fi
+          cd Data-Ops-Atividade-III
           git pull origin main
-          docker-compose down || true
-          docker-compose up -d --build
+          docker stop calculadora || true
+          docker rm calculadora || true
+          docker build -t calculadora .
+          docker run -d -p 80:80 --name calculadora calculadora
